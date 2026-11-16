@@ -1,0 +1,3 @@
+// Team und Signing-Identität sind maschinenspezifisch und stehen in Config/Local.xcconfig (gitignored).
+// Local.xcconfig.example kopieren und DEVELOPMENT_TEAM setzen.
+#include? "Local.xcconfig"
