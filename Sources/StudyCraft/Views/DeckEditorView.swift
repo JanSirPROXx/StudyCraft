@@ -80,6 +80,8 @@ struct DeckEditorView: View {
           }
           .listStyle(.insetGrouped)
           .scrollContentBackground(.hidden)
+          .frame(maxWidth: 760)
+          .frame(maxWidth: .infinity)
         }
       } else {
         ContentUnavailableView("Deck nicht mehr vorhanden", systemImage: "folder.badge.questionmark")

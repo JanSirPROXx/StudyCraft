@@ -60,9 +60,9 @@ struct MarkdownView: View, Equatable {
     case .code(_, let text):
       ScrollView(.horizontal, showsIndicators: false) {
         Text(text)
-          .font(.system(size: size * 0.8, design: .monospaced))
+          .font(.system(size: size * 0.7, design: .monospaced))
+          .fixedSize()  // Zeilen nie umbrechen oder kürzen: lange Zeilen scrollen waagerecht
           .padding(14)
-          .frame(maxWidth: .infinity, alignment: .leading)
       }
       .background(Theme.field, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     case .quote(let text):

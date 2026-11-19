@@ -19,6 +19,7 @@ struct StudyView: View {
           SessionSummary(session: session, close: close)
         }
       }
+      .frame(maxWidth: 820)  // auf dem iPad bleibt die Karte gut lesbar
     }
   }
 
@@ -527,11 +528,12 @@ struct CardFace: View {
   let label: String
   let blocks: [MDBlock]
   let resolver: ImageResolver
+  @Environment(\.horizontalSizeClass) private var sizeClass
 
   var body: some View {
     GeometryReader { geometry in
       ScrollView {
-        MarkdownView(blocks: blocks, resolver: resolver)
+        MarkdownView(blocks: blocks, resolver: resolver, size: sizeClass == .regular ? 27 : 21)
           .equatable()
           .padding(.horizontal, 24)
           .padding(.top, 44)

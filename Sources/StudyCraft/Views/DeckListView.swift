@@ -117,6 +117,8 @@ struct DeckListView: View {
           }
           .listStyle(.insetGrouped)
           .scrollContentBackground(.hidden)
+          .frame(maxWidth: 760)  // auf dem iPad nicht über die ganze Breite
+          .frame(maxWidth: .infinity)
         }
       }
       .background(Theme.background)
