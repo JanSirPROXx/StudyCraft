@@ -353,6 +353,38 @@ final class AppModel {
     errorMessage = "\(message): \(error.localizedDescription)"
   }
 
+  // Alle Decks als flache Liste (für die Auswahl beim Anlegen einer Karte), Unterdecks mit Pfad.
+  var deckChoices: [(id: String, title: String)] {
+    var result: [(String, String)] = []
+    func add(_ nodes: [DeckNode]) {
+      for node in nodes {
+        result.append((node.id, node.id.isEmpty ? node.name : node.id.replacingOccurrences(of: "/", with: " › ")))
+        add(node.children)
+      }
+    }
+    add(decks)
+    return result
+  }
+
+  // Die Kennung eines neuen Decks unter `parent`, oder nil mit Fehlermeldung. Der Ordner entsteht erst,
+  // wenn die erste Karte gespeichert wird.
+  func newDeckID(parent: String, name: String) -> String? {
+    let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !clean.isEmpty else { return nil }
+    guard !clean.contains("/"), !clean.contains(":"), !clean.hasPrefix("."),
+      clean != ProgressFiles.folderName
+    else {
+      errorMessage = "Der Name darf weder „/“ noch „:“ enthalten und nicht mit einem Punkt beginnen."
+      return nil
+    }
+    let id = parent.isEmpty ? clean : parent + "/" + clean
+    if FileManager.default.fileExists(atPath: folderURL(id).path) {
+      errorMessage = "Es gibt schon ein Deck „\(clean)“."
+      return nil
+    }
+    return id
+  }
+
   func renameDeck(_ node: DeckNode, to newName: String) async -> Bool {
     let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !node.id.isEmpty, !name.isEmpty else { return false }
@@ -426,6 +458,7 @@ final class AppModel {
         let target = listFile(in: deckID)
         let folder = folderURL(deckID)
         try await Task.detached {
+          try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
           if let target {
             try CardStore.append(to: target, front: front, back: back)
           } else {
@@ -480,6 +513,7 @@ final class AppModel {
         guard let jpeg = output.jpegData(compressionQuality: 0.85) else {
           throw CocoaError(.fileWriteUnknown)
         }
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try FileIO.writeData(jpeg, to: folder.appendingPathComponent(name))
         return name
       }.value

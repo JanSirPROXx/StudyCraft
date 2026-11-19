@@ -9,6 +9,16 @@ struct DeckListView: View {
   @State private var renaming: DeckNode?
   @State private var renameText = ""
   @State private var deleting: DeckNode?
+  @State private var newDeckParent: String?  // nicht nil: der Name-Dialog für ein neues (Unter-)Deck ist offen
+  @State private var newDeckName = ""
+  @State private var cardSheet: CardSheet?
+
+  private struct CardSheet: Identifiable {
+    var deckID: String
+    var chooseDeck = false
+    var isNewDeck = false
+    var id: String { "\(deckID)|\(chooseDeck)|\(isNewDeck)" }
+  }
   @AppStorage("expandedDecks") private var expandedStorage = ""
 
   private struct Row: Identifiable {
@@ -74,11 +84,22 @@ struct DeckListView: View {
               }
               .contextMenu {
                 Button {
+                  cardSheet = CardSheet(deckID: row.node.id)
+                } label: {
+                  Label("Karte hinzufügen", systemImage: "rectangle.badge.plus")
+                }
+                Button {
                   editingID = row.node.id
                 } label: {
                   Label("Karten bearbeiten", systemImage: "square.and.pencil")
                 }
                 if !row.node.id.isEmpty {
+                  Button {
+                    newDeckName = ""
+                    newDeckParent = row.node.id
+                  } label: {
+                    Label("Unterdeck anlegen", systemImage: "folder.badge.plus")
+                  }
                   Button {
                     renameText = row.node.name
                     renaming = row.node
@@ -107,6 +128,25 @@ struct DeckListView: View {
           }
         }
         ToolbarItem(placement: .topBarTrailing) {
+          Menu {
+            Button {
+              cardSheet = CardSheet(deckID: model.deckChoices.first?.id ?? "", chooseDeck: true)
+            } label: {
+              Label("Neue Karte", systemImage: "rectangle.badge.plus")
+            }
+            .disabled(model.decks.isEmpty)
+            Button {
+              newDeckName = ""
+              newDeckParent = ""
+            } label: {
+              Label("Neues Deck", systemImage: "folder.badge.plus")
+            }
+          } label: {
+            Image(systemName: "plus")
+          }
+          .accessibilityLabel("Hinzufügen")
+        }
+        ToolbarItem(placement: .topBarTrailing) {
           Button {
             settings = true
           } label: {
@@ -119,6 +159,23 @@ struct DeckListView: View {
       .navigationDestination(item: $editingID) { id in DeckEditorView(deckID: id) }
     }
     .sheet(isPresented: $settings) { SettingsView() }
+    .sheet(item: $cardSheet) { sheet in
+      CardEditorView(deckID: sheet.deckID, card: nil, chooseDeck: sheet.chooseDeck, isNewDeck: sheet.isNewDeck)
+    }
+    .alert(
+      newDeckParent?.isEmpty == false ? "Neues Unterdeck" : "Neues Deck",
+      isPresented: Binding(get: { newDeckParent != nil }, set: { if !$0 { newDeckParent = nil } })
+    ) {
+      TextField("Name", text: $newDeckName)
+      Button("Abbrechen", role: .cancel) {}
+      Button("Weiter") {
+        if let parent = newDeckParent, let id = model.newDeckID(parent: parent, name: newDeckName) {
+          cardSheet = CardSheet(deckID: id, isNewDeck: true)
+        }
+      }
+    } message: {
+      Text("Als Nächstes schreibst du die erste Karte. Das Deck ist ein Ordner im Lernordner.")
+    }
     .alert("Deck umbenennen", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
       TextField("Name", text: $renameText)
       Button("Abbrechen", role: .cancel) {}
@@ -165,8 +222,12 @@ struct DeckListView: View {
             "In „\(model.rootName)“ liegen keine Markdown-Dateien mit Karten. Eine Datei ist eine Karte, wenn ihre erste Zeile @studyCraft oder @studyCraft_List lautet."
           )
         } actions: {
+          Button("Neues Deck anlegen") {
+            newDeckName = ""
+            newDeckParent = ""
+          }
+          .buttonStyle(.borderedProminent)
           Button("Beispiel-Deck anlegen") { createSample() }
-            .buttonStyle(.borderedProminent)
           Button("Kartenformat ansehen") { settings = true }
         }
         .padding(.top, 60)

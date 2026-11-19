@@ -77,6 +77,10 @@ Wisch zählt als erste Stufe (Gut/Schwer). Die Karte fliegt in Wischrichtung hin
 
 ## Decks und Karten bearbeiten
 
+Auf dem Startbildschirm legt **+** ein neues Deck (Name, dann die erste Karte; das Deck ist ein Ordner, der mit der
+ersten Karte entsteht) oder eine neue Karte in einem wählbaren Deck an. Im Menü bei langem Drücken auf ein Deck gibt es
+außerdem „Karte hinzufügen" und „Unterdeck anlegen".
+
 Auf dem Startbildschirm: nach links wischen oder lange drücken bei einem Deck → **Bearbeiten** (Kartenliste),
 **Umbenennen** (der Ordner wird umbenannt, der Lernstand zieht mit) und **Löschen** (der Ordner wird gelöscht, vorher
 Rückfrage). In der Kartenliste: **+** fügt eine Karte hinzu (sie wird an die erste Listen-Datei des Decks angehängt oder in

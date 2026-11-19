@@ -166,9 +166,11 @@ struct DeckEditorView: View {
 struct CardEditorView: View {
   @Environment(AppModel.self) private var model
   @Environment(\.dismiss) private var dismiss
-  let deckID: String
   let card: Card?
+  let chooseDeck: Bool
+  let isNewDeck: Bool
 
+  @State private var deckID: String
   @State private var front: String
   @State private var back: String
   @State private var saving = false
@@ -178,9 +180,13 @@ struct CardEditorView: View {
 
   private enum Field { case front, back }
 
-  init(deckID: String, card: Card?) {
-    self.deckID = deckID
+  // `chooseDeck`: oben lässt sich das Deck wählen. `isNewDeck`: das Deck gibt es noch nicht, die erste
+  // Karte legt es an.
+  init(deckID: String, card: Card?, chooseDeck: Bool = false, isNewDeck: Bool = false) {
+    _deckID = State(initialValue: deckID)
     self.card = card
+    self.chooseDeck = chooseDeck
+    self.isNewDeck = isNewDeck
     _front = State(initialValue: card?.front ?? "")
     _back = State(initialValue: card?.back ?? "")
   }
@@ -192,6 +198,19 @@ struct CardEditorView: View {
   var body: some View {
     NavigationStack {
       Form {
+        if chooseDeck {
+          Section("Deck") {
+            Picker("Deck", selection: $deckID) {
+              ForEach(model.deckChoices, id: \.id) { choice in Text(choice.title).tag(choice.id) }
+            }
+            .listRowBackground(Theme.card)
+          }
+        } else if isNewDeck {
+          Section("Neues Deck") {
+            Label(deckID.replacingOccurrences(of: "/", with: " › "), systemImage: "folder.badge.plus")
+              .listRowBackground(Theme.card)
+          }
+        }
         editor("Vorderseite", text: $front, field: .front, photo: $frontPhoto)
         editor("Rückseite", text: $back, field: .back, photo: $backPhoto)
 
@@ -208,7 +227,7 @@ struct CardEditorView: View {
       }
       .scrollContentBackground(.hidden)
       .background(Theme.background)
-      .navigationTitle(card == nil ? "Neue Karte" : "Karte bearbeiten")
+      .navigationTitle(card == nil ? (isNewDeck ? "Erste Karte" : "Neue Karte") : "Karte bearbeiten")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {
         ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
