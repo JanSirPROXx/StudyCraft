@@ -5,6 +5,7 @@ import SwiftUI
 struct StudyView: View {
   let session: StudySession
   let close: () -> Void
+  @State private var burst = 0
 
   var body: some View {
     ZStack {
@@ -23,17 +24,31 @@ struct StudyView: View {
 
   // MARK: Kopf
 
+  private func roundButton(_ symbol: String, label: String, action: @escaping () -> Void)
+    -> some View
+  {
+    Button(action: action) {
+      Image(systemName: symbol)
+        .font(.system(size: 15, weight: .semibold))
+        .foregroundStyle(Theme.textSecondary)
+        .frame(width: 36, height: 36)
+        .background(Theme.field, in: Circle())
+    }
+    .accessibilityLabel(label)
+  }
+
   private var header: some View {
-    HStack(spacing: 14) {
-      Button(action: close) {
-        Image(systemName: "xmark")
-          .font(.system(size: 15, weight: .semibold))
-          .foregroundStyle(Theme.textSecondary)
-          .frame(width: 36, height: 36)
-          .background(Theme.field, in: Circle())
+    HStack(spacing: 12) {
+      roundButton("xmark", label: "Schließen", action: close)
+        .keyboardShortcut(.escape, modifiers: [])
+
+      roundButton("arrow.uturn.backward", label: "Zurück zur letzten Karte") {
+        Haptics.selection()
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) { session.undo() }
       }
-      .keyboardShortcut(.escape, modifiers: [])
-      .accessibilityLabel("Schließen")
+      .keyboardShortcut("z", modifiers: .command)
+      .disabled(!session.canUndo)
+      .opacity(session.canUndo ? 1 : 0.35)
 
       ProgressBar(fraction: session.fraction)
         .frame(height: 6)
@@ -43,10 +58,34 @@ struct StudyView: View {
       Text("\(session.remaining) übrig")
         .font(.footnote.monospacedDigit())
         .foregroundStyle(Theme.textSecondary)
-        .frame(minWidth: 56, alignment: .trailing)
+        .frame(minWidth: 52, alignment: .trailing)
+
+      modeMenu
     }
     .padding(.horizontal, 16)
     .padding(.vertical, 10)
+  }
+
+  private var modeMenu: some View {
+    Menu {
+      Picker(
+        "Reihenfolge",
+        selection: Binding(
+          get: { session.mode },
+          set: { mode in withAnimation(.snappy) { session.setMode(mode) } })
+      ) {
+        ForEach(StudyMode.allCases) { mode in
+          Label(mode.title, systemImage: mode.icon).tag(mode)
+        }
+      }
+    } label: {
+      Image(systemName: session.mode.icon)
+        .font(.system(size: 15, weight: .semibold))
+        .foregroundStyle(Theme.accent)
+        .frame(width: 36, height: 36)
+        .background(Theme.field, in: Circle())
+    }
+    .accessibilityLabel("Reihenfolge: \(session.mode.title)")
   }
 
   // MARK: Karte
@@ -54,17 +93,15 @@ struct StudyView: View {
   private func cardArea(_ card: Card) -> some View {
     CardStage(
       session: session, resolver: session.imageResolver(for: card),
-      front: session.currentBlocks.front, back: session.currentBlocks.back
+      front: session.currentBlocks.front, back: session.currentBlocks.back,
+      celebrate: { burst += 1 }
     )
     .id(session.cardSerial)
-    .transition(
-      .asymmetric(
-        insertion: .move(edge: .trailing).combined(with: .opacity),
-        removal: .move(edge: .leading).combined(with: .opacity))
-    )
+    .transition(.scale(scale: 0.93).combined(with: .opacity))
     .padding(.horizontal, 16)
     .padding(.bottom, 12)
     .frame(maxHeight: .infinity)
+    .overlay { SparkBurst(trigger: burst).allowsHitTesting(false) }
   }
 
   // MARK: Bedienung
@@ -76,14 +113,13 @@ struct StudyView: View {
         HStack(spacing: 10) {
           ForEach(Rating.allCases) { rating in
             RatingButton(rating: rating, interval: session.previews[rating] ?? 0) {
-              UISelectionFeedbackGenerator().selectionChanged()
-              withAnimation(.snappy(duration: 0.3)) { session.rate(rating) }
+              session.request(rating)
             }
           }
         }
       } else {
         Button("Antwort zeigen") {
-          UIImpactFeedbackGenerator(style: .light).impactOccurred()
+          Haptics.flip()
           session.flip()
         }
         .buttonStyle(PrimaryButtonStyle())
@@ -137,30 +173,329 @@ private struct ProgressBar: View {
   }
 }
 
-// MARK: Umdrehen
+// MARK: Karte mit Wischgesten
 
-// Eine Karte samt ihrem Umdreh-Zustand. Der Zustand gehört der Ansicht selbst: beim Wechsel zur nächsten
-// Karte bleibt die abgehende Karte so, wie sie war, und gleitet unverändert hinaus.
+private enum SwipeSide { case positive, negative }
+
+// Eine Karte samt ihrem Zustand: umgedreht, gerade gezogen, am Hinausfliegen. Der Zustand gehört der
+// Ansicht selbst, damit die abgehende Karte unverändert hinausgleitet.
+//
+// Ziehen nach rechts: "Gut", mit gehaltenem Finger "Einfach" (leichte Impulse, dann ein Schlag).
+// Ziehen nach links: "Schwer", mit gehaltenem Finger "Nochmal" (ohne Haptik).
 private struct CardStage: View {
   let session: StudySession
   let resolver: ImageResolver
   let front: [MDBlock]
   let back: [MDBlock]
+  let celebrate: () -> Void
+
   @State private var flipped = false
+  @State private var offset: CGSize
+  @State private var side: SwipeSide?
+  @State private var dwell = 0.0
+  @State private var strong = false
+  @State private var leavingRating: Rating?
+  @State private var tracking = false
+  @State private var horizontal = false
+  @State private var dwellTask: Task<Void, Never>?
+
+  init(
+    session: StudySession, resolver: ImageResolver, front: [MDBlock], back: [MDBlock],
+    celebrate: @escaping () -> Void
+  ) {
+    self.session = session
+    self.resolver = resolver
+    self.front = front
+    self.back = back
+    self.celebrate = celebrate
+    _offset = State(initialValue: CGSize(width: session.entryOffset, height: 0))
+  }
+
+  private var shown: Rating? {
+    if let leavingRating { return leavingRating }
+    if let side {
+      return side == .positive ? (strong ? .easy : .good) : (strong ? .again : .hard)
+    }
+    if abs(offset.width) < 14 { return nil }
+    return offset.width > 0 ? .good : .hard
+  }
+
+  private var pull: Double {
+    leavingRating != nil ? 1 : min(1, Double(abs(offset.width)) / Double(SwipeRule.trigger))
+  }
 
   var body: some View {
-    FlipCard(
-      angle: flipped ? 180 : 0,
-      front: CardFace(label: "Frage", blocks: front, resolver: resolver),
-      back: CardFace(label: "Antwort", blocks: back, resolver: resolver)
-    )
-    .animation(.spring(response: 0.5, dampingFraction: 0.85), value: flipped)
-    .contentShape(Rectangle())
-    .onTapGesture {
-      UIImpactFeedbackGenerator(style: .light).impactOccurred()
-      session.flip()
+    let rating = shown
+    let color = rating.map(Theme.color(for:)) ?? .clear
+    let celebrating = strong && side == .positive
+
+    ZStack {
+      FlipCard(
+        angle: flipped ? 180 : 0,
+        front: CardFace(label: "Frage", blocks: front, resolver: resolver),
+        back: CardFace(label: "Antwort", blocks: back, resolver: resolver)
+      )
+      .animation(.spring(response: 0.5, dampingFraction: 0.85), value: flipped)
+      .overlay {
+        RoundedRectangle(cornerRadius: 28, style: .continuous)
+          .fill(color.opacity(strong ? 0.26 : 0.17 * pull))
+          .allowsHitTesting(false)
+      }
+      .overlay {
+        if strong {
+          RoundedRectangle(cornerRadius: 28, style: .continuous)
+            .strokeBorder(color, lineWidth: 3)
+            .shadow(color: color.opacity(0.7), radius: 16)
+            .allowsHitTesting(false)
+            .transition(.opacity)
+        }
+      }
+      .scaleEffect(celebrating ? 1.04 : 1)
+      .animation(.spring(response: 0.3, dampingFraction: 0.5), value: celebrating)
+      .animation(.easeOut(duration: 0.2), value: strong)
+      .rotationEffect(.degrees(max(-14, min(14, Double(offset.width) / 22))), anchor: .bottom)
+      .offset(offset)
+      .contentShape(Rectangle())
+      .onTapGesture {
+        Haptics.flip()
+        session.flip()
+      }
+      .simultaneousGesture(drag)
+    }
+    // Das Abzeichen bleibt oben in der Mitte, auch wenn die Karte zur Seite wandert.
+    .overlay(alignment: .top) {
+      ZStack {
+        if let rating {
+          SwipeBadge(
+            rating: rating, dwell: dwell, armed: side != nil && leavingRating == nil, strong: strong
+          )
+          .id(rating)
+          .transition(.scale(scale: 0.7).combined(with: .opacity))
+        }
+      }
+      .padding(.top, 22)
+      .opacity(rating == nil ? 0 : max(pull, side != nil ? 1 : 0))
+      .animation(.spring(response: 0.3, dampingFraction: 0.6), value: rating)
+      .allowsHitTesting(false)
     }
     .onChange(of: session.flipTick) { flipped.toggle() }
+    .onChange(of: session.requestSerial) {
+      if let rating = session.requestedRating { commit(rating) }
+    }
+    .onAppear {
+      guard offset != .zero else { return }
+      withAnimation(.spring(response: 0.5, dampingFraction: 0.82)) { offset = .zero }
+    }
+    .onDisappear { dwellTask?.cancel() }
+  }
+
+  // MARK: Geste
+
+  private var drag: some Gesture {
+    DragGesture(minimumDistance: 14, coordinateSpace: .global)
+      .onChanged { value in
+        if !tracking {
+          tracking = true
+          horizontal = abs(value.translation.width) > abs(value.translation.height) * 1.1
+          if horizontal { Haptics.prepare() }
+        }
+        guard horizontal, leavingRating == nil else { return }
+        offset = CGSize(
+          width: Self.damped(value.translation.width), height: value.translation.height * 0.2)
+        updateSide(value.translation.width)
+      }
+      .onEnded { value in
+        let wasHorizontal = horizontal
+        tracking = false
+        horizontal = false
+        guard wasHorizontal, leavingRating == nil else { return }
+        dwellTask?.cancel()
+        if let rating = SwipeRule.rating(
+          dx: value.translation.width, armed: side != nil, strong: strong,
+          predicted: value.predictedEndTranslation.width)
+        {
+          commit(rating)
+        } else {
+          reset()
+        }
+      }
+  }
+
+  // Die Karte folgt dem Finger, wird aber weiter außen träger und verlässt den Bildschirm nicht.
+  private static func damped(_ dx: CGFloat) -> CGFloat {
+    let limit: CGFloat = 90
+    let magnitude = abs(dx)
+    let shown = magnitude <= limit ? magnitude : limit + (magnitude - limit) * 0.45
+    return dx < 0 ? -shown : shown
+  }
+
+  // Ab einer gewissen Strecke ist die erste Stufe erreicht; ein Stück zurück hebt sie wieder auf.
+  private func updateSide(_ dx: CGFloat) {
+    let new: SwipeSide?
+    if let side {
+      let distance = side == .positive ? dx : -dx
+      new = distance > SwipeRule.release ? side : nil
+    } else {
+      new = dx >= SwipeRule.trigger ? .positive : (dx <= -SwipeRule.trigger ? .negative : nil)
+    }
+    guard new != side else { return }
+    dwellTask?.cancel()
+    dwell = 0
+    strong = false
+    side = new
+    if let new {
+      if new == .positive { Haptics.engage() }
+      startDwell(new)
+    }
+  }
+
+  // Solange der Finger an der Stelle bleibt, füllt sich der Ring. Rechts kribbelt es dabei immer
+  // stärker und am Ende gibt es den Belohnungs-Schlag; links bleibt alles still.
+  private func startDwell(_ side: SwipeSide) {
+    dwellTask = Task { @MainActor in
+      let start = Date()
+      var lastTick = 0.0
+      while !Task.isCancelled {
+        try? await Task.sleep(for: .milliseconds(16))
+        if Task.isCancelled { return }
+        let elapsed = Date().timeIntervalSince(start)
+        let progress = min(1, elapsed / SwipeRule.dwell)
+        dwell = progress
+        if progress >= 1 {
+          strong = true
+          if side == .positive {
+            Haptics.reward()
+            celebrate()
+          }
+          return
+        }
+        if side == .positive, elapsed - lastTick >= 0.17 - 0.11 * progress {
+          lastTick = elapsed
+          Haptics.tick(0.2 + 0.7 * progress)
+        }
+      }
+    }
+  }
+
+  private func reset() {
+    side = nil
+    dwell = 0
+    withAnimation(.spring(response: 0.38, dampingFraction: 0.7)) {
+      offset = .zero
+      strong = false
+    }
+  }
+
+  // Die Karte fliegt in Wischrichtung hinaus, danach kommt die nächste.
+  private func commit(_ rating: Rating) {
+    guard leavingRating == nil else { return }
+    dwellTask?.cancel()
+    let rewarded = strong
+    leavingRating = rating
+    switch rating {
+    case .good:
+      Haptics.release(strong: false)
+    case .easy:
+      if rewarded {
+        Haptics.release(strong: true)
+      } else {
+        Haptics.reward()
+      }
+      celebrate()
+    case .hard, .again:
+      break  // keine Haptik: schlechte Antworten sollen nichts belohnen
+    }
+    withAnimation(.easeIn(duration: 0.26)) {
+      offset = CGSize(width: rating.isPositive ? 900 : -900, height: offset.height - 30)
+    } completion: {
+      withAnimation(.spring(response: 0.4, dampingFraction: 0.86)) { session.rate(rating) }
+    }
+  }
+}
+
+private struct SwipeBadge: View {
+  let rating: Rating
+  let dwell: Double
+  let armed: Bool
+  let strong: Bool
+
+  private var next: Rating? {
+    switch rating {
+    case .good: .easy
+    case .hard: .again
+    default: nil
+    }
+  }
+
+  private var symbol: String {
+    switch rating {
+    case .again: "arrow.counterclockwise"
+    case .hard: "tortoise.fill"
+    case .good: "checkmark"
+    case .easy: "sparkles"
+    }
+  }
+
+  var body: some View {
+    let color = Theme.color(for: rating)
+    VStack(spacing: 8) {
+      HStack(spacing: 8) {
+        ZStack {
+          if next != nil, armed {
+            Circle().stroke(.white.opacity(0.3), lineWidth: 3)
+            Circle().trim(from: 0, to: dwell)
+              .stroke(.white, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+              .rotationEffect(.degrees(-90))
+          }
+          Image(systemName: symbol).font(.system(size: 14, weight: .bold))
+        }
+        .frame(width: 30, height: 30)
+        Text(rating.title).font(.headline)
+      }
+      .foregroundStyle(.white)
+      .padding(.horizontal, 16)
+      .padding(.vertical, 8)
+      .background(color, in: Capsule())
+      .shadow(color: color.opacity(strong ? 0.7 : 0.35), radius: strong ? 16 : 8, y: 2)
+
+      if let next, armed {
+        Text("Halten für \(next.title)")
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(Theme.color(for: next))
+      }
+    }
+  }
+}
+
+// Funken, die beim "Einfach" aus der Karte spritzen.
+private struct SparkBurst: View {
+  let trigger: Int
+  @State private var phase = 0.0
+
+  private let colors: [Color] = [Theme.newBlue, Theme.success, Theme.warning, Theme.accent]
+
+  var body: some View {
+    ZStack {
+      ForEach(0..<20, id: \.self) { index in
+        let angle = Double(index) / 20 * 2 * .pi + 0.2
+        let distance = 80 + Double((index * 37) % 90)
+        Image(systemName: index % 3 == 0 ? "sparkle" : "circle.fill")
+          .font(.system(size: index % 3 == 0 ? 18 : 8))
+          .foregroundStyle(colors[index % colors.count])
+          .offset(
+            x: cos(angle) * distance * phase, y: sin(angle) * distance * phase - 30 * phase
+          )
+          .scaleEffect(1 - phase * 0.5)
+          .opacity(phase == 0 ? 0 : 1 - phase)
+      }
+    }
+    .onChange(of: trigger) {
+      phase = 0
+      Task { @MainActor in
+        try? await Task.sleep(for: .milliseconds(30))
+        withAnimation(.easeOut(duration: 0.9)) { phase = 1 }
+      }
+    }
   }
 }
 
@@ -229,20 +564,29 @@ private struct SessionSummary: View {
   var body: some View {
     VStack(spacing: 18) {
       Spacer()
-      Image(systemName: "checkmark.circle.fill")
+      Image(systemName: session.answered > 0 ? "checkmark.circle.fill" : "tray")
         .font(.system(size: 76))
         .symbolRenderingMode(.palette)
-        .foregroundStyle(.white, Theme.success)
-      Text(session.answered > 0 ? "Geschafft!" : "Alles erledigt")
+        .foregroundStyle(session.answered > 0 ? .white : Theme.textTertiary, Theme.success)
+      Text(session.answered > 0 ? "Geschafft!" : "Nichts zu lernen")
         .font(.largeTitle.bold())
       Text(subtitle)
         .font(.body)
         .foregroundStyle(Theme.textSecondary)
         .multilineTextAlignment(.center)
       Spacer()
-      Button("Fertig", action: close)
-        .buttonStyle(PrimaryButtonStyle())
-        .keyboardShortcut(.return, modifiers: [])
+      VStack(spacing: 10) {
+        Button("Fertig", action: close)
+          .buttonStyle(PrimaryButtonStyle())
+          .keyboardShortcut(.return, modifiers: [])
+        Button {
+          withAnimation(.snappy) { session.restart() }
+        } label: {
+          Label("Noch einmal durchgehen", systemImage: "arrow.clockwise")
+            .font(.subheadline.weight(.medium))
+            .frame(maxWidth: .infinity, minHeight: 44)
+        }
+      }
     }
     .padding(24)
     .frame(maxWidth: 520)
@@ -255,9 +599,9 @@ private struct SessionSummary: View {
       let cards = session.answered == 1 ? "1 Antwort" : "\(session.answered) Antworten"
       return minutes >= 1 ? "\(cards) in \(minutes) Min" : cards
     }
-    if let next = session.nextDue {
-      return "In „\(session.deckName)“ ist gerade nichts fällig.\nDie nächste Karte kommt \(IntervalFormat.relative(next))."
+    if session.mode == .new {
+      return "In „\(session.deckName)“ gibt es keine neuen Karten mehr.\nWähle oben rechts „Mischen“ oder „Der Reihe nach“."
     }
-    return "In „\(session.deckName)“ ist nichts fällig."
+    return "In „\(session.deckName)“ gibt es keine Karten."
   }
 }

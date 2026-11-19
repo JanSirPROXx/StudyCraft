@@ -9,6 +9,9 @@ struct Card: Identifiable, Hashable, Sendable {
   let fileURL: URL
   let filePath: String
   let order: Int  // Position in der Datei
+  let chunk: Int  // wie vielte "==="-Einheit der Datei
+  let hidden: Bool  // ausgeblendet: wird nicht gelernt und nicht gezählt
+  let isSingle: Bool  // die Datei ist genau diese Karte
 
   var directory: URL { fileURL.deletingLastPathComponent() }
 }
@@ -21,11 +24,22 @@ struct DeckNode: Identifiable, Sendable {
 
   var allCards: [Card] { cards + children.flatMap(\.allCards) }
   var cardCount: Int { cards.count + children.reduce(0) { $0 + $1.cardCount } }
+
+  func find(_ id: String) -> DeckNode? {
+    if self.id == id { return self }
+    for child in children { if let hit = child.find(id) { return hit } }
+    return nil
+  }
 }
 
 enum DeckTree {
   static let looseID = ""
   static let looseName = "Allgemein"
+
+  static func find(_ id: String, in nodes: [DeckNode]) -> DeckNode? {
+    for node in nodes { if let hit = node.find(id) { return hit } }
+    return nil
+  }
 
   static func build(from cards: [Card]) -> [DeckNode] {
     let byDeck = Dictionary(grouping: cards, by: \.deckID)
@@ -70,10 +84,9 @@ enum DeckTree {
 
 // Wie viele Karten in einem Deck (samt Unterdecks) jetzt anstehen.
 struct DeckCounts: Equatable, Sendable {
-  var new = 0  // neue Karten, die heute noch gelernt werden dürfen
+  var new = 0  // Karten, die noch nie beantwortet wurden
   var due = 0  // fällige Wiederholungen und Lernkarten
   var total = 0
-  var introducedToday = 0
 }
 
 enum CardIdentity {

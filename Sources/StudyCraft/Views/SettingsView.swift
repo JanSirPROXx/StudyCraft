@@ -20,12 +20,6 @@ struct SettingsView: View {
           )
         }
 
-        Section("Lernen") {
-          Stepper(value: $model.newPerDay, in: 0...500, step: 5) {
-            LabeledContent("Neue Karten pro Tag", value: "\(model.newPerDay)")
-          }
-        }
-
         Section("Darstellung") {
           Picker("Erscheinungsbild", selection: $model.appearance) {
             ForEach(AppearanceMode.allCases) { mode in Text(mode.title).tag(mode) }
@@ -100,6 +94,7 @@ struct FormatHelpView: View {
         VStack(alignment: .leading, spacing: 8) {
           Text("**---** trennt Vorder- und Rückseite.")
           Text("**===** trennt mehrere Karten in einer Datei.")
+          Text("`<!-- hidden -->` als eigene Zeile in einer Karte blendet sie aus.")
           Text(
             "Unterstützt werden Überschriften, **fett**, *kursiv*, Listen, Code-Blöcke, Tabellen und Bilder – `![Text](bild.png)` oder `![[bild.png]]` aus demselben Ordner."
           )

@@ -55,12 +55,35 @@ behalten den Lernstand; wer die Vorderseite ändert oder eine Datei verschiebt, 
 Klassischer Anki-Algorithmus (SM-2, „v2"-Scheduler): Lernschritte 1 Min und 10 Min, danach 1 Tag (Einfach: 4 Tage),
 Startleichtigkeit 250 %, Schwer ×1,2 (−15 %), Gut ×Leichtigkeit, Einfach ×Leichtigkeit ×1,3 (+15 %), Vergessen führt in
 den Wiederholungsschritt (10 Min) und senkt die Leichtigkeit um 20 % (mindestens 130 %). Überfällige Karten bekommen
-Bonus-Tage. Ein Lerntag endet um 4 Uhr morgens. Pro Tag kommen standardmäßig 20 neue Karten (einstellbar).
+Bonus-Tage. Ein Lerntag endet um 4 Uhr morgens.
 
-- Tippen auf die Karte oder „Antwort zeigen" dreht sie um; darunter vier Buttons mit dem Abstand bis zum nächsten Mal
-  (`< 1 Min`, `6 Min`, `10 Min`, `4 Tage` …).
-- Tastatur (iPad): Leertaste = Antwort zeigen, 1–4 = Bewertung, Esc = beenden.
+Eine Sitzung geht das ganze Deck (samt Unterdecks) einmal durch, ohne Tageslimit. Oben rechts wählst du die Reihenfolge:
+
+- **Mischen** (`shuffle`): jede Karte genau einmal, zufällig, aber ohne Häufungen: Karten, die in der Datei nebeneinander
+  stehen, werden getrennt, und die erste Karte ist nie die zuletzt gelernte.
+- **Der Reihe nach** (`list.number`): so, wie es in den Dateien steht.
+- **Nur neue** (`sparkles`): nur Karten, die noch nie beantwortet wurden.
+
+„Nochmal" bringt die Karte nach 4–7 anderen Karten noch einmal; jede andere Antwort schließt sie für die Sitzung ab.
+Der Pfeil neben dem X nimmt die letzte Antwort zurück (Lernstand und Statistik inklusive).
+
+Bewerten per Wischen: Karte nach **rechts** ziehen = Gut, Finger noch ~0,85 s halten = **Einfach** (mit sich
+aufbauenden Vibrationen, einem Schlag und Funken). Nach **links** = Schwer, halten = Nochmal, ohne Vibration. Ein schneller
+Wisch zählt als erste Stufe (Gut/Schwer). Die Karte fliegt in Wischrichtung hinaus. Die vier Buttons nach dem Umdrehen
+(Tippen auf die Karte oder „Antwort zeigen") funktionieren weiterhin und zeigen den Abstand bis zum nächsten Mal.
+
+- Tastatur (iPad): Leertaste = Antwort zeigen, 1–4 = Bewertung, ⌘Z = zurück, Esc = beenden.
 - Auf dem Startbildschirm steht neben jedem Deck blau die Zahl neuer, grün die Zahl fälliger Karten.
+
+## Decks und Karten bearbeiten
+
+Auf dem Startbildschirm: nach links wischen oder lange drücken bei einem Deck → **Bearbeiten** (Kartenliste),
+**Umbenennen** (der Ordner wird umbenannt, der Lernstand zieht mit) und **Löschen** (der Ordner wird gelöscht, vorher
+Rückfrage). In der Kartenliste: **+** fügt eine Karte hinzu (sie wird an die erste Listen-Datei des Decks angehängt oder in
+einer neuen `Karten.md` angelegt), Tippen bearbeitet, Wischen blendet aus oder löscht. Alles geschieht direkt in den
+`.md`-Dateien; was nicht angefasst wird, bleibt unverändert. Ausgeblendete Karten tragen die Zeile `<!-- hidden -->`,
+werden nicht gelernt und nicht gezählt. Im Karteneditor lassen sich Bilder aus den Fotos einfügen: sie werden verkleinert
+im Ordner des Decks abgelegt und als `![[Bild-….jpg]]` eingebaut.
 
 ## Fortschritt und iCloud-Sync
 

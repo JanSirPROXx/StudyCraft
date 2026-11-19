@@ -27,17 +27,14 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
 final class AppModel {
   private enum Keys {
     static let bookmark = "rootBookmark"
-    static let newPerDay = "newCardsPerDay"
+    static let studyMode = "studyMode"
     static let appearance = "appearanceMode"
     static let deviceID = "deviceID"
   }
 
   // Einstellungen
-  var newPerDay: Int {
-    didSet {
-      defaults.set(newPerDay, forKey: Keys.newPerDay)
-      recomputeCounts()
-    }
+  var studyMode: StudyMode {
+    didSet { defaults.set(studyMode.rawValue, forKey: Keys.studyMode) }
   }
   var appearance: AppearanceMode {
     didSet { defaults.set(appearance.rawValue, forKey: Keys.appearance) }
@@ -77,8 +74,7 @@ final class AppModel {
   static let learnAhead: TimeInterval = 20 * 60
 
   init() {
-    let saved = defaults.integer(forKey: Keys.newPerDay)
-    newPerDay = defaults.object(forKey: Keys.newPerDay) == nil ? 20 : saved
+    studyMode = defaults.string(forKey: Keys.studyMode).flatMap(StudyMode.init) ?? .shuffle
     appearance = defaults.string(forKey: Keys.appearance).flatMap(AppearanceMode.init) ?? .system
     let id = defaults.string(forKey: Keys.deviceID) ?? UUID().uuidString
     defaults.set(id, forKey: Keys.deviceID)
@@ -242,13 +238,12 @@ final class AppModel {
 
     func visit(_ node: DeckNode) -> DeckCounts {
       var counts = DeckCounts()
-      for card in node.cards {
+      for card in node.cards where !card.hidden {
         counts.total += 1
         guard let state = progress.state(for: card.id) else {
           counts.new += 1
           continue
         }
-        if state.introducedDay == today { counts.introducedToday += 1 }
         switch state.queue {
         case .new: counts.new += 1
         case .learning, .relearning:
@@ -262,11 +257,8 @@ final class AppModel {
         counts.new += c.new
         counts.due += c.due
         counts.total += c.total
-        counts.introducedToday += c.introducedToday
       }
-      var shown = counts
-      shown.new = min(counts.new, max(0, newPerDay - counts.introducedToday))
-      result[node.id] = shown
+      result[node.id] = counts
       return counts
     }
     for deck in decks { _ = visit(deck) }
@@ -278,10 +270,20 @@ final class AppModel {
   // MARK: Lernen
 
   func startSession(_ node: DeckNode) {
-    activeSession = StudySession(deck: node, model: self)
+    activeSession = StudySession(deck: node, mode: studyMode, model: self)
   }
 
+  // Was nötig ist, um eine Antwort wieder zurückzunehmen.
+  struct RatingToken {
+    var cardID: String
+    var old: CardProgress?
+    var day: Int
+    var log: DayLog
+  }
+
+  @discardableResult
   func record(card: Card, old: CardProgress?, new: CardProgress, rating: Rating, seconds: TimeInterval)
+    -> RatingToken
   {
     var log = DayLog()
     log.reviews = 1
@@ -292,8 +294,16 @@ final class AppModel {
       log.reviewCards = 1
       if rating != .again { log.reviewCorrect = 1 }
     }
-    progress.record(
-      cardID: card.id, progress: new, day: StudyClock.dayIndex(for: new.updatedAt), log: log)
+    let day = StudyClock.dayIndex(for: new.updatedAt)
+    progress.record(cardID: card.id, progress: new, day: day, log: log)
+    dirty = true
+    scheduleSave()
+    recomputeCounts()
+    return RatingToken(cardID: card.id, old: old, day: day, log: log)
+  }
+
+  func undo(_ token: RatingToken) {
+    progress.revert(cardID: token.cardID, to: token.old, day: token.day, log: token.log)
     dirty = true
     scheduleSave()
     recomputeCounts()
@@ -326,6 +336,163 @@ final class AppModel {
 
   func imageResolver(for card: Card) -> ImageResolver {
     ImageResolver(directory: card.directory, root: rootURL, index: imageIndex)
+  }
+
+  func imageResolver(deckID: String) -> ImageResolver {
+    ImageResolver(directory: folderURL(deckID), root: rootURL, index: imageIndex)
+  }
+
+  // MARK: Decks und Karten bearbeiten
+
+  func folderURL(_ deckID: String) -> URL {
+    let root = rootURL ?? URL(fileURLWithPath: "/")
+    return deckID.isEmpty ? root : root.appendingPathComponent(deckID, isDirectory: true)
+  }
+
+  private func fail(_ message: String, _ error: Error) {
+    errorMessage = "\(message): \(error.localizedDescription)"
+  }
+
+  func renameDeck(_ node: DeckNode, to newName: String) async -> Bool {
+    let name = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !node.id.isEmpty, !name.isEmpty else { return false }
+    guard !name.contains("/"), !name.contains(":"), !name.hasPrefix(".") else {
+      errorMessage = "Der Name darf weder „/“ noch „:“ enthalten und nicht mit einem Punkt beginnen."
+      return false
+    }
+    let parent = node.id.contains("/") ? String(node.id[..<node.id.lastIndex(of: "/")!]) + "/" : ""
+    let newID = parent + name
+    if newID == node.id { return true }
+    let source = folderURL(node.id)
+    let destination = folderURL(newID)
+    let caseOnly = newID.lowercased() == node.id.lowercased()
+    if !caseOnly, FileManager.default.fileExists(atPath: destination.path) {
+      errorMessage = "Es gibt schon einen Ordner „\(name)“."
+      return false
+    }
+    do {
+      try await Task.detached { try FileIO.move(source, to: destination) }.value
+    } catch {
+      fail("Das Deck konnte nicht umbenannt werden", error)
+      return false
+    }
+    // Der Lernstand zieht mit: Karten-Kennungen beginnen mit dem Ordnerpfad.
+    let oldPrefix = node.id + "/"
+    var mapping: [String: String] = [:]
+    for id in progress.merged.keys where id.hasPrefix(oldPrefix) {
+      mapping[id] = newID + "/" + id.dropFirst(oldPrefix.count)
+    }
+    progress.migrate(mapping)
+    dirty = true
+    scheduleSave()
+    await refresh()
+    return true
+  }
+
+  func deleteDeck(_ node: DeckNode) async {
+    guard !node.id.isEmpty else { return }
+    let url = folderURL(node.id)
+    do {
+      try await Task.detached { try FileIO.remove(url) }.value
+    } catch {
+      fail("Das Deck konnte nicht gelöscht werden", error)
+    }
+    await refresh()
+  }
+
+  // In diese Datei kommen neue Karten eines Decks: die erste Listen-Datei direkt in seinem Ordner.
+  private func listFile(in deckID: String) -> URL? {
+    let candidates = cardsByID.values.filter {
+      $0.deckID == deckID && parseCache[$0.filePath]?.parsed?.isList == true
+    }
+    return candidates.min { $0.filePath.localizedStandardCompare($1.filePath) == .orderedAscending }?
+      .fileURL
+  }
+
+  func saveCard(_ card: Card?, deckID: String, front: String, back: String) async -> Bool {
+    do {
+      if let card {
+        try await Task.detached { try CardStore.update(card: card, front: front, back: back) }.value
+        if !card.isSingle {
+          let renamed = CardIdentity.id(
+            file: card.filePath,
+            card: ParsedCard(front: CardParser.trimmed(front), back: CardParser.trimmed(back)),
+            index: 0, isSingle: false)
+          progress.migrate([card.id: renamed])
+          dirty = true
+          scheduleSave()
+        }
+      } else {
+        let target = listFile(in: deckID)
+        let folder = folderURL(deckID)
+        try await Task.detached {
+          if let target {
+            try CardStore.append(to: target, front: front, back: back)
+          } else {
+            try CardStore.createList(in: folder, front: front, back: back)
+          }
+        }.value
+      }
+    } catch {
+      errorMessage = error.localizedDescription
+      return false
+    }
+    await refresh()
+    return true
+  }
+
+  func setHidden(_ hidden: Bool, card: Card) async {
+    do {
+      try await Task.detached { try CardStore.setHidden(hidden, card: card) }.value
+    } catch {
+      errorMessage = error.localizedDescription
+    }
+    await refresh()
+  }
+
+  func deleteCard(_ card: Card) async {
+    do {
+      try await Task.detached { try CardStore.remove(card: card) }.value
+    } catch {
+      errorMessage = error.localizedDescription
+    }
+    await refresh()
+  }
+
+  // Legt ein Bild aus der Fotomediathek im Ordner des Decks ab und gibt den Dateinamen zurück.
+  func addImage(_ data: Data, deckID: String) async -> String? {
+    guard let image = UIImage(data: data) else { return nil }
+    let folder = folderURL(deckID)
+    do {
+      return try await Task.detached {
+        let name = "Bild-" + Self.imageStamp() + ".jpg"
+        let longest = max(image.size.width, image.size.height)
+        var output = image
+        if longest > 2000 {
+          let scale = 2000 / longest
+          let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+          let format = UIGraphicsImageRendererFormat.default()
+          format.scale = 1
+          output = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: size))
+          }
+        }
+        guard let jpeg = output.jpegData(compressionQuality: 0.85) else {
+          throw CocoaError(.fileWriteUnknown)
+        }
+        try FileIO.writeData(jpeg, to: folder.appendingPathComponent(name))
+        return name
+      }.value
+    } catch {
+      fail("Das Bild konnte nicht gespeichert werden", error)
+      return nil
+    }
+  }
+
+  nonisolated private static func imageStamp() -> String {
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyyMMdd-HHmmss-SSS"
+    return formatter.string(from: Date())
   }
 
   // MARK: Statistik
@@ -368,7 +535,7 @@ final class AppModel {
     }
     stats.retention = reviewed >= 5 ? Double(correct) / Double(reviewed) : nil
 
-    for card in cardsByID.values {
+    for card in cardsByID.values where !card.hidden {
       switch progress.state(for: card.id)?.queue {
       case nil, .new?: stats.newCards += 1
       case .learning?, .relearning?: stats.learningCards += 1

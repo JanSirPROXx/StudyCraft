@@ -5,6 +5,10 @@ import SwiftUI
 struct DeckListView: View {
   @Environment(AppModel.self) private var model
   @State private var settings = false
+  @State private var editingID: String?
+  @State private var renaming: DeckNode?
+  @State private var renameText = ""
+  @State private var deleting: DeckNode?
   @AppStorage("expandedDecks") private var expandedStorage = ""
 
   private struct Row: Identifiable {
@@ -52,6 +56,42 @@ struct DeckListView: View {
               )
               .listRowBackground(Theme.card)
               .listRowSeparatorTint(Theme.separator)
+              .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                if !row.node.id.isEmpty {
+                  Button(role: .destructive) {
+                    deleting = row.node
+                  } label: {
+                    Label("Löschen", systemImage: "trash")
+                  }
+                  .tint(Theme.danger)
+                }
+                Button {
+                  editingID = row.node.id
+                } label: {
+                  Label("Bearbeiten", systemImage: "square.and.pencil")
+                }
+                .tint(Theme.accent)
+              }
+              .contextMenu {
+                Button {
+                  editingID = row.node.id
+                } label: {
+                  Label("Karten bearbeiten", systemImage: "square.and.pencil")
+                }
+                if !row.node.id.isEmpty {
+                  Button {
+                    renameText = row.node.name
+                    renaming = row.node
+                  } label: {
+                    Label("Umbenennen", systemImage: "pencil")
+                  }
+                  Button(role: .destructive) {
+                    deleting = row.node
+                  } label: {
+                    Label("Deck löschen", systemImage: "trash")
+                  }
+                }
+              }
             }
           }
           .listStyle(.insetGrouped)
@@ -76,8 +116,34 @@ struct DeckListView: View {
         }
       }
       .refreshable { await model.refresh() }
+      .navigationDestination(item: $editingID) { id in DeckEditorView(deckID: id) }
     }
     .sheet(isPresented: $settings) { SettingsView() }
+    .alert("Deck umbenennen", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+      TextField("Name", text: $renameText)
+      Button("Abbrechen", role: .cancel) {}
+      Button("Umbenennen") {
+        if let node = renaming {
+          let name = renameText
+          Task { _ = await model.renameDeck(node, to: name) }
+        }
+      }
+    } message: {
+      Text("Der Ordner wird umbenannt, der Lernfortschritt bleibt erhalten.")
+    }
+    .confirmationDialog(
+      deleting.map { "„\($0.name)“ löschen?" } ?? "",
+      isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+      titleVisibility: .visible
+    ) {
+      Button("Deck samt Ordner löschen", role: .destructive) {
+        if let node = deleting { Task { await model.deleteDeck(node) } }
+      }
+    } message: {
+      Text(
+        "Der Ordner und alle \(deleting?.cardCount ?? 0) Karten darin werden von deinem Gerät und aus iCloud Drive gelöscht (dort einige Zeit in „Zuletzt gelöscht“)."
+      )
+    }
   }
 
   @ViewBuilder

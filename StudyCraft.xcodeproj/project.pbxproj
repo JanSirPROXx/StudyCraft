@@ -20,11 +20,16 @@
 		714772F68B5E377F486C7DD7 /* CoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB4FAD6BCCC1DFA0BD79F7CC /* CoreTests.swift */; };
 		813DE7992031B379C7026FFB /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D8E9EAF54A12AB4EAF9501 /* SettingsView.swift */; };
 		892D0F92B2EB3617151B32B1 /* MarkdownView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCDE0A228C800B2F50C0E0FA /* MarkdownView.swift */; };
+		9E14BC83C7E3D16A83805AED /* DeckEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 444BE55DEE4ABFF86441716A /* DeckEditorView.swift */; };
 		9E56605C0B78C626803963C7 /* StudySession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 335A7F70A2D2B4A093221DF4 /* StudySession.swift */; };
 		A1A7B8E8D58DE1079F213BC3 /* Scheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE6FE2551217E10D72267254 /* Scheduler.swift */; };
 		A39D5245311EC15B3507AC98 /* Progress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F578749FB24E4BAFF5DCC93 /* Progress.swift */; };
+		B33D17446F40E3EE445DCEA3 /* Study.swift in Sources */ = {isa = PBXBuildFile; fileRef = C40BD5A0FCCE42E3C2207D99 /* Study.swift */; };
 		B4275D987F2661FFBB3F082F /* MarkdownParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 44E871D54826AC9F987D56DB /* MarkdownParser.swift */; };
+		BD22C8F5418A3E1102A87CB8 /* CardStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8113E2F0652968D100C119F /* CardStore.swift */; };
 		CE1D1FC3DD7D22909BE1A6EB /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34208DCBF0484DE33A83162A /* StatsView.swift */; };
+		D9102FB788764C8566C2F4F0 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2448EF68F10F3D877C42A8E /* Haptics.swift */; };
+		E29FE5BA76E29015BACA5A5C /* EditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B407B571E03C41865644246D /* EditingTests.swift */; };
 		F55EF9A8609BD81F6AEC61D2 /* ImageSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75AF28239248F0E680FAF3F9 /* ImageSupport.swift */; };
 		FC9FFFCF24DABE53C5E9500F /* StudyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C26D18295621AE3B9B50FE6 /* StudyView.swift */; };
 		FF0D9D1DDCE07A4610345F9D /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F96BE49A8BD0E5583BFE9B2 /* AppModel.swift */; };
@@ -51,6 +56,7 @@
 		34FE72EE92DF398C2F3C0891 /* StudyClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyClock.swift; sourceTree = "<group>"; };
 		39269FC2626295CB3384D0B7 /* DeckListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckListView.swift; sourceTree = "<group>"; };
 		3C26D18295621AE3B9B50FE6 /* StudyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyView.swift; sourceTree = "<group>"; };
+		444BE55DEE4ABFF86441716A /* DeckEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeckEditorView.swift; sourceTree = "<group>"; };
 		44E871D54826AC9F987D56DB /* MarkdownParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownParser.swift; sourceTree = "<group>"; };
 		646D22EC8896BD97E9346A4F /* StudyCraftTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = StudyCraftTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		75AF28239248F0E680FAF3F9 /* ImageSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageSupport.swift; sourceTree = "<group>"; };
@@ -58,9 +64,13 @@
 		80AE1771CE6ADE49B90300AA /* CardParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardParser.swift; sourceTree = "<group>"; };
 		9F96BE49A8BD0E5583BFE9B2 /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		AE6FE2551217E10D72267254 /* Scheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scheduler.swift; sourceTree = "<group>"; };
+		B2448EF68F10F3D877C42A8E /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
+		B407B571E03C41865644246D /* EditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditingTests.swift; sourceTree = "<group>"; };
 		BCDE0A228C800B2F50C0E0FA /* MarkdownView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownView.swift; sourceTree = "<group>"; };
 		C0D8E9EAF54A12AB4EAF9501 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		C40BD5A0FCCE42E3C2207D99 /* Study.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Study.swift; sourceTree = "<group>"; };
 		CB4FAD6BCCC1DFA0BD79F7CC /* CoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTests.swift; sourceTree = "<group>"; };
+		D8113E2F0652968D100C119F /* CardStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStore.swift; sourceTree = "<group>"; };
 		E35ED9C3FBFAEAB0731DBBDD /* SampleDeck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleDeck.swift; sourceTree = "<group>"; };
 		F265428EC049B82A05FE7D77 /* FolderScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderScanner.swift; sourceTree = "<group>"; };
 		F7940134DA65887C2F995DC4 /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Signing.xcconfig; sourceTree = "<group>"; };
@@ -81,6 +91,7 @@
 		6CF94804990A4C2D55D6E41C /* Support */ = {
 			isa = PBXGroup;
 			children = (
+				B2448EF68F10F3D877C42A8E /* Haptics.swift */,
 				E35ED9C3FBFAEAB0731DBBDD /* SampleDeck.swift */,
 				7C1E92024C337A893195585F /* Theme.swift */,
 			);
@@ -111,6 +122,7 @@
 				44E871D54826AC9F987D56DB /* MarkdownParser.swift */,
 				1F578749FB24E4BAFF5DCC93 /* Progress.swift */,
 				AE6FE2551217E10D72267254 /* Scheduler.swift */,
+				C40BD5A0FCCE42E3C2207D99 /* Study.swift */,
 				34FE72EE92DF398C2F3C0891 /* StudyClock.swift */,
 			);
 			path = Core;
@@ -120,6 +132,7 @@
 			isa = PBXGroup;
 			children = (
 				CB4FAD6BCCC1DFA0BD79F7CC /* CoreTests.swift */,
+				B407B571E03C41865644246D /* EditingTests.swift */,
 			);
 			name = StudyCraftTests;
 			path = Tests/StudyCraftTests;
@@ -129,6 +142,7 @@
 			isa = PBXGroup;
 			children = (
 				9F96BE49A8BD0E5583BFE9B2 /* AppModel.swift */,
+				D8113E2F0652968D100C119F /* CardStore.swift */,
 				09E15BC020D506F6590877CE /* Deck.swift */,
 				F265428EC049B82A05FE7D77 /* FolderScanner.swift */,
 				18D3C793E924581D196E35D2 /* FolderWatcher.swift */,
@@ -141,6 +155,7 @@
 		EE1721548B9F16F36E635701 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				444BE55DEE4ABFF86441716A /* DeckEditorView.swift */,
 				39269FC2626295CB3384D0B7 /* DeckListView.swift */,
 				BCDE0A228C800B2F50C0E0FA /* MarkdownView.swift */,
 				13C4EAFEE4DD705520A3BD97 /* RootView.swift */,
@@ -257,6 +272,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				714772F68B5E377F486C7DD7 /* CoreTests.swift in Sources */,
+				E29FE5BA76E29015BACA5A5C /* EditingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -266,10 +282,13 @@
 			files = (
 				FF0D9D1DDCE07A4610345F9D /* AppModel.swift in Sources */,
 				4273F95CD247969B679D0B00 /* CardParser.swift in Sources */,
+				BD22C8F5418A3E1102A87CB8 /* CardStore.swift in Sources */,
 				25F79BE395C4F6E67FF974E0 /* Deck.swift in Sources */,
+				9E14BC83C7E3D16A83805AED /* DeckEditorView.swift in Sources */,
 				4360204717AE65D659B16DEC /* DeckListView.swift in Sources */,
 				0C12D3987EF7C37219D246DE /* FolderScanner.swift in Sources */,
 				295344D1204BCE86CACF6D49 /* FolderWatcher.swift in Sources */,
+				D9102FB788764C8566C2F4F0 /* Haptics.swift in Sources */,
 				F55EF9A8609BD81F6AEC61D2 /* ImageSupport.swift in Sources */,
 				B4275D987F2661FFBB3F082F /* MarkdownParser.swift in Sources */,
 				892D0F92B2EB3617151B32B1 /* MarkdownView.swift in Sources */,
@@ -279,6 +298,7 @@
 				A1A7B8E8D58DE1079F213BC3 /* Scheduler.swift in Sources */,
 				813DE7992031B379C7026FFB /* SettingsView.swift in Sources */,
 				CE1D1FC3DD7D22909BE1A6EB /* StatsView.swift in Sources */,
+				B33D17446F40E3EE445DCEA3 /* Study.swift in Sources */,
 				70218C668FD3D6B5CE795F87 /* StudyClock.swift in Sources */,
 				9E56605C0B78C626803963C7 /* StudySession.swift in Sources */,
 				FC9FFFCF24DABE53C5E9500F /* StudyView.swift in Sources */,

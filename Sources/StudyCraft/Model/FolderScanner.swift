@@ -67,7 +67,8 @@ enum FolderScanner {
         seen.insert(id)
         cards[id] = Card(
           id: id, deckID: deckID, front: card.front, back: card.back, fileURL: entry.url,
-          filePath: entry.path, order: index)
+          filePath: entry.path, order: index, chunk: card.chunk, hidden: card.hidden,
+          isSingle: single)
       }
     }
 

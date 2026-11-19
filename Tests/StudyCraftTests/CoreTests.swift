@@ -38,7 +38,7 @@ final class CardParserTests: XCTestCase {
 
   func testCardsWithoutBackOrFrontAreSkipped() throws {
     let file = try XCTUnwrap(CardParser.parse("@studyCraft_List\nNur vorne\n===\nF\n---\nB\n===\n---\nNur hinten"))
-    XCTAssertEqual(file.cards, [ParsedCard(front: "F", back: "B")])
+    XCTAssertEqual(file.cards, [ParsedCard(front: "F", back: "B", chunk: 1)])
   }
 
   func testWindowsLineEndingsAndBOM() throws {

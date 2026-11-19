@@ -3,6 +3,8 @@ import Foundation
 struct ParsedCard: Equatable, Sendable {
   var front: String
   var back: String
+  var chunk = 0  // wie vielte "===" -getrennte Einheit der Datei (für das Bearbeiten)
+  var hidden = false  // ausgeblendet über `<!-- hidden -->`
 }
 
 struct ParsedFile: Equatable, Sendable {
@@ -22,11 +24,30 @@ struct ParsedFile: Equatable, Sendable {
 //     ...
 //
 // Trennlinien in Code-Blöcken (``` oder ~~~) zählen nicht. Dateien ohne Kennung sind keine Karten.
+// Eine Zeile `<!-- hidden -->` in einer Karte blendet sie aus.
 enum CardParser {
   static let singleIdentifier = "@studycraft"
   static let listIdentifier = "@studycraft_list"
+  static let hiddenMarker = "<!-- hidden -->"
 
-  static func parse(_ raw: String) -> ParsedFile? {
+  // Die Datei in ihre Bausteine zerlegt: Kennzeile und die Abschnitte zwischen den "==="-Zeilen. Daraus
+  // lässt sich der Text wieder zusammensetzen, ohne etwas zu verändern (außer Zeilenenden und BOM).
+  struct Layout: Sendable {
+    var header: String
+    var isList: Bool
+    var chunks: [[String]]
+
+    var text: String {
+      var lines = [header]
+      for (index, chunk) in chunks.enumerated() {
+        if index > 0 { lines.append("===") }
+        lines += chunk
+      }
+      return lines.joined(separator: "\n")
+    }
+  }
+
+  static func layout(_ raw: String) -> Layout? {
     var text = raw
     if text.hasPrefix("\u{FEFF}") { text.removeFirst() }
     let lines =
@@ -40,33 +61,41 @@ enum CardParser {
     default: return nil
     }
 
-    var cards: [ParsedCard] = []
+    var chunks: [[String]] = [[]]
+    var fence: String?
+    for line in lines.dropFirst() {
+      let trimmed = line.trimmingCharacters(in: .whitespaces)
+      if isFence(trimmed) {
+        toggle(&fence, trimmed)
+      } else if fence == nil, isRule(trimmed, of: "=") {
+        chunks.append([])
+        continue
+      }
+      chunks[chunks.count - 1].append(line)
+    }
+    return Layout(header: first, isList: isList, chunks: chunks)
+  }
+
+  static func parse(_ raw: String) -> ParsedFile? {
+    guard let layout = layout(raw) else { return nil }
+    let cards = layout.chunks.enumerated().compactMap { card(in: $1, chunk: $0) }
+    return ParsedFile(isList: layout.isList, cards: cards)
+  }
+
+  // Die Karte in einem Abschnitt, falls er Vorder- und Rückseite hat.
+  static func card(in lines: [String], chunk: Int) -> ParsedCard? {
     var front: [String] = []
     var back: [String] = []
     var inBack = false
+    var hidden = false
     var fence: String?
-
-    func finish() {
-      let f = joined(front)
-      let b = joined(back)
-      if inBack, !f.isEmpty, !b.isEmpty { cards.append(ParsedCard(front: f, back: b)) }
-      front = []
-      back = []
-      inBack = false
-    }
-
-    for line in lines.dropFirst() {
+    for line in lines {
       let trimmed = line.trimmingCharacters(in: .whitespaces)
-      if trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~") {
-        let marker = String(trimmed.prefix(3))
-        if fence == nil {
-          fence = marker
-        } else if fence == marker {
-          fence = nil
-        }
+      if isFence(trimmed) {
+        toggle(&fence, trimmed)
       } else if fence == nil {
-        if isRule(trimmed, of: "=") {
-          finish()
+        if isHiddenMarker(trimmed) {
+          hidden = true
           continue
         }
         if !inBack, isRule(trimmed, of: "-") {
@@ -76,8 +105,33 @@ enum CardParser {
       }
       if inBack { back.append(line) } else { front.append(line) }
     }
-    finish()
-    return ParsedFile(isList: isList, cards: cards)
+    let f = joined(front)
+    let b = joined(back)
+    guard inBack, !f.isEmpty, !b.isEmpty else { return nil }
+    return ParsedCard(front: f, back: b, chunk: chunk, hidden: hidden)
+  }
+
+  static func isHiddenMarker(_ line: String) -> Bool {
+    line.lowercased().replacingOccurrences(of: " ", with: "") == "<!--hidden-->"
+  }
+
+  // Der Text so, wie er nach dem Parsen aussieht (ohne leere Zeilen am Anfang und Ende).
+  static func trimmed(_ text: String) -> String {
+    joined(
+      text.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n"))
+  }
+
+  private static func isFence(_ trimmed: String) -> Bool {
+    trimmed.hasPrefix("```") || trimmed.hasPrefix("~~~")
+  }
+
+  private static func toggle(_ fence: inout String?, _ trimmed: String) {
+    let marker = String(trimmed.prefix(3))
+    if fence == nil {
+      fence = marker
+    } else if fence == marker {
+      fence = nil
+    }
   }
 
   private static func isRule(_ trimmed: String, of character: Character) -> Bool {

@@ -16,6 +16,14 @@ struct DayLog: Codable, Equatable, Sendable {
     reviewCorrect += other.reviewCorrect
     seconds += other.seconds
   }
+
+  mutating func subtract(_ other: DayLog) {
+    reviews = max(0, reviews - other.reviews)
+    newCards = max(0, newCards - other.newCards)
+    reviewCards = max(0, reviewCards - other.reviewCards)
+    reviewCorrect = max(0, reviewCorrect - other.reviewCorrect)
+    seconds = max(0, seconds - other.seconds)
+  }
 }
 
 // Die Datei, die ein Gerät in den Lernordner schreibt (`_StudyCraft/progress-<Geräte-ID>.json`).
@@ -64,6 +72,35 @@ struct ProgressBook: Sendable {
     var total = days[day] ?? DayLog()
     total.add(log)
     days[day] = total
+  }
+
+  // Nimmt eine Antwort zurück: der Stand der Karte und das Tagesprotokoll sind danach wie vorher.
+  mutating func revert(cardID: String, to old: CardProgress?, day: Int, log: DayLog) {
+    if let old {
+      own.cards[cardID] = old
+      merged[cardID] = old
+    } else {
+      own.cards.removeValue(forKey: cardID)
+      merged.removeValue(forKey: cardID)
+    }
+    if var entry = own.days[String(day)] {
+      entry.subtract(log)
+      own.days[String(day)] = entry
+    }
+    if var total = days[day] {
+      total.subtract(log)
+      days[day] = total
+    }
+  }
+
+  // Karten haben eine neue Kennung bekommen (Deck umbenannt, Vorderseite geändert): der Lernstand zieht um.
+  mutating func migrate(_ mapping: [String: String]) {
+    for (old, new) in mapping where old != new {
+      guard let state = own.cards[old] ?? merged[old] else { continue }
+      own.cards[new] = state
+      own.cards.removeValue(forKey: old)
+    }
+    rebuild()
   }
 
   private mutating func rebuild() {
@@ -171,6 +208,31 @@ enum FileIO {
     if let text = String(data: data, encoding: .utf8) { return text }
     if let text = String(data: data, encoding: .isoLatin1) { return text }
     throw CocoaError(.fileReadInapplicableStringEncoding)
+  }
+
+  static func move(_ source: URL, to destination: URL) throws {
+    var coordinationError: NSError?
+    var result: Result<Void, Error>?
+    NSFileCoordinator(filePresenter: nil).coordinate(
+      writingItemAt: source, options: .forMoving, writingItemAt: destination,
+      options: .forReplacing, error: &coordinationError
+    ) { from, to in
+      result = Result { try FileManager.default.moveItem(at: from, to: to) }
+    }
+    if let coordinationError { throw coordinationError }
+    try result?.get()
+  }
+
+  static func remove(_ url: URL) throws {
+    var coordinationError: NSError?
+    var result: Result<Void, Error>?
+    NSFileCoordinator(filePresenter: nil).coordinate(
+      writingItemAt: url, options: .forDeleting, error: &coordinationError
+    ) { location in
+      result = Result { try FileManager.default.removeItem(at: location) }
+    }
+    if let coordinationError { throw coordinationError }
+    try result?.get()
   }
 
   static func writeData(_ data: Data, to url: URL) throws {
