@@ -13,8 +13,8 @@ Die einzige Netzwerkverbindung der App dient dazu, fertige Decks im Tab „Entde
 
 ## Verantwortlich
 
-<!-- Vor der Veröffentlichung ausfüllen: Name, Anschrift und E-Mail-Adresse der verantwortlichen Person. -->
-**[Name, Anschrift und E-Mail-Adresse des Entwicklers hier eintragen]**
+Jan Bichsel (Einzelentwickler)  
+E-Mail: [jan@skyware.ch](mailto:jan@skyware.ch)
 
 ## Welche Daten verarbeitet die App?
 

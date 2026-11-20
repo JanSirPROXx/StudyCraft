@@ -13,8 +13,8 @@ The app's only network connection is used to fetch ready-made decks in the “En
 
 ## Controller
 
-<!-- Fill in before publishing: name, address and email address of the responsible person. -->
-**[Developer name, address and email address go here]**
+Jan Bichsel (individual developer)  
+Email: [jan@skyware.ch](mailto:jan@skyware.ch)
 
 ## What data does the app process?
 

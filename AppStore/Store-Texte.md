@@ -71,8 +71,7 @@ Primär: Bildung · Sekundär: Produktivität
 - Datenschutz-URL: https://jansirprox.github.io/StudyCraft/datenschutz
 - Marketing-URL: optional
 
-Vorher in den Repository-Einstellungen unter *Settings → Pages* „Deploy from a branch“, Branch `main`, Ordner `/docs` wählen und in
-`docs/datenschutz.md` und `docs/privacy.md` den Abschnitt „Verantwortlich“ ausfüllen.
+GitHub Pages: Branch `main`, Ordner `/docs`.
 
 ## App-Datenschutz (Fragebogen in App Store Connect)
 „Daten werden nicht erfasst" (Data Not Collected). Kein Tracking.
