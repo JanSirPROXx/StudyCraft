@@ -9,10 +9,10 @@ StudyCraft
 Lernkarten aus Markdown
 
 ## Werbetext (max. 170)
-Karteikarten aus deinen Markdown-Dateien oder aus fertigen Decks: Hauptstädte, Länderkarten, Schweiz, Persönlichkeiten, Informatik. Per Wischen bewerten, automatisch planen.
+Karteikarten aus deinen Markdown-Dateien oder fertigen Decks: Hauptstädte, Länderkarten, Schweiz, Persönlichkeiten, Informatik. Per Wischen bewerten.
 
 ## Stichwörter (max. 100, mit Komma, ohne Leerzeichen)
-Karteikarten,Lernkarten,Markdown,Lernen,Vokabeln,Flashcards,Quiz,Prüfung,Studium,Hauptstädte,Schweiz,iCloud
+Karteikarten,Lernkarten,Markdown,Lernen,Flashcards,Quiz,Prüfung,Studium,Hauptstädte,Schweiz,iCloud
 
 ## Beschreibung (max. 4000)
 StudyCraft macht aus deinen Markdown-Dateien Lernkarten. Du schreibst sie am Mac oder direkt in der App, StudyCraft plant die Wiederholungen so, dass du Karten genau dann siehst, wenn du sie fast vergessen hast. Und wenn du nichts schreiben willst: Im Tab „Entdecken“ findest du fertige Decks.
