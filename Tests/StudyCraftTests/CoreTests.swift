@@ -118,7 +118,7 @@ final class SchedulerTests: XCTestCase {
     scheduler.intervals(for: p, now: now)[rating]!
   }
 
-  func testNewCardIntervalsMatchAnki() {
+  func testNewCardIntervals() {
     XCTAssertEqual(seconds(nil, .again), 60)
     XCTAssertEqual(seconds(nil, .hard), 330)
     XCTAssertEqual(seconds(nil, .good), 600)

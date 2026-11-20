@@ -1,0 +1,16 @@
+{
+  "order": 1,
+  "title": "Capitals of the World",
+  "subtitle": "All 194 countries and their capitals, by continent",
+  "description": "Name the capital of every country in the world. The deck is split into six continents, so you can learn region by region or shuffle everything. Tricky cases like Bolivia, South Africa or the Netherlands come with a short note.",
+  "language": "en",
+  "tags": [
+    "Geography",
+    "Capitals",
+    "Countries",
+    "Quiz"
+  ],
+  "folderName": "Capitals of the World",
+  "revision": 1,
+  "thumbnail": "thumbnail.jpg"
+}

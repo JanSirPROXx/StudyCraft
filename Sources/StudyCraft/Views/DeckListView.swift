@@ -229,6 +229,7 @@ struct DeckListView: View {
             newDeckParent = ""
           }
           .buttonStyle(.borderedProminent)
+          Button("Decks entdecken") { model.selectedTab = .discover }
           Button("Beispiel-Deck anlegen") { createSample() }
           Button("Kartenformat ansehen") { settings = true }
         }

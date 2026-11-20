@@ -19,6 +19,9 @@ enum Haptics {
 
   static func selection() { select.selectionChanged() }
 
+  // Ein Deck wurde geladen.
+  static func success() { notify.notificationOccurred(.success) }
+
   // Beim Umdrehen.
   static func flip() { light.impactOccurred(intensity: 0.7) }
 

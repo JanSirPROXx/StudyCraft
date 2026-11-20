@@ -1,0 +1,16 @@
+{
+  "order": 2,
+  "title": "Countries on the Map",
+  "subtitle": "Spot the highlighted country on a blank map",
+  "description": "A map quiz with all 194 countries. Each card shows a blank map with borders, and one country is marked in red. Say its name, then flip the card to check it, together with its capital. Tiny states are circled so you can find them, and the deck is split by continent.",
+  "language": "en",
+  "tags": [
+    "Geography",
+    "Maps",
+    "Countries",
+    "Visual"
+  ],
+  "folderName": "Countries on the Map",
+  "revision": 1,
+  "thumbnail": "thumbnail.jpg"
+}

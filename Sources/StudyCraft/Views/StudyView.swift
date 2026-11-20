@@ -5,7 +5,9 @@ import SwiftUI
 struct StudyView: View {
   let session: StudySession
   let close: () -> Void
+  @Environment(AppModel.self) private var app
   @State private var burst = 0
+  @State private var reward: RewardController?
 
   var body: some View {
     ZStack {
@@ -20,6 +22,9 @@ struct StudyView: View {
         }
       }
       .frame(maxWidth: 820)  // auf dem iPad bleibt die Karte gut lesbar
+    }
+    .onAppear {
+      if app.ultraDopamine, reward == nil { reward = RewardController(sound: app.ultraSound) }
     }
   }
 
@@ -95,7 +100,7 @@ struct StudyView: View {
     CardStage(
       session: session, resolver: session.imageResolver(for: card),
       front: session.currentBlocks.front, back: session.currentBlocks.back,
-      celebrate: { burst += 1 }
+      reward: reward, celebrate: { burst += 1 }
     )
     .id(session.cardSerial)
     .transition(.scale(scale: 0.93).combined(with: .opacity))
@@ -103,6 +108,7 @@ struct StudyView: View {
     .padding(.bottom, 12)
     .frame(maxHeight: .infinity)
     .overlay { SparkBurst(trigger: burst).allowsHitTesting(false) }
+    .overlay { if let reward { RewardLayer(controller: reward) } }
   }
 
   // MARK: Bedienung
@@ -188,6 +194,7 @@ private struct CardStage: View {
   let resolver: ImageResolver
   let front: [MDBlock]
   let back: [MDBlock]
+  let reward: RewardController?
   let celebrate: () -> Void
 
   @State private var flipped = false
@@ -202,12 +209,13 @@ private struct CardStage: View {
 
   init(
     session: StudySession, resolver: ImageResolver, front: [MDBlock], back: [MDBlock],
-    celebrate: @escaping () -> Void
+    reward: RewardController?, celebrate: @escaping () -> Void
   ) {
     self.session = session
     self.resolver = resolver
     self.front = front
     self.back = back
+    self.reward = reward
     self.celebrate = celebrate
     _offset = State(initialValue: CGSize(width: session.entryOffset, height: 0))
   }
@@ -244,11 +252,17 @@ private struct CardStage: View {
       }
       .overlay {
         if strong {
-          RoundedRectangle(cornerRadius: 28, style: .continuous)
-            .strokeBorder(color, lineWidth: 3)
-            .shadow(color: color.opacity(0.7), radius: 16)
-            .allowsHitTesting(false)
-            .transition(.opacity)
+          if reward != nil {
+            GlowBorder()
+              .allowsHitTesting(false)
+              .transition(.opacity)
+          } else {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+              .strokeBorder(color, lineWidth: 3)
+              .shadow(color: color.opacity(0.7), radius: 16)
+              .allowsHitTesting(false)
+              .transition(.opacity)
+          }
         }
       }
       .scaleEffect(celebrating ? 1.04 : 1)
@@ -287,7 +301,10 @@ private struct CardStage: View {
       guard offset != .zero else { return }
       withAnimation(.spring(response: 0.5, dampingFraction: 0.82)) { offset = .zero }
     }
-    .onDisappear { dwellTask?.cancel() }
+    .onDisappear {
+      dwellTask?.cancel()
+      reward?.cancelCharge()
+    }
   }
 
   // MARK: Geste
@@ -340,12 +357,16 @@ private struct CardStage: View {
       new = dx >= SwipeRule.trigger ? .positive : (dx <= -SwipeRule.trigger ? .negative : nil)
     }
     guard new != side else { return }
+    if side == .positive { reward?.cancelCharge() }
     dwellTask?.cancel()
     dwell = 0
     strong = false
     side = new
     if let new {
-      if new == .positive { Haptics.engage() }
+      if new == .positive {
+        Haptics.engage()
+        reward?.beginCharge(duration: SwipeRule.dwell)
+      }
       startDwell(new)
     }
   }
@@ -362,15 +383,22 @@ private struct CardStage: View {
         let elapsed = Date().timeIntervalSince(start)
         let progress = min(1, elapsed / SwipeRule.dwell)
         dwell = progress
+        if side == .positive { reward?.update(progress) }
         if progress >= 1 {
           strong = true
           if side == .positive {
-            Haptics.reward()
-            celebrate()
+            if let reward {
+              reward.burst()  // die Glühbirne blitzt auf
+            } else {
+              Haptics.reward()
+              celebrate()
+            }
           }
           return
         }
-        if side == .positive, elapsed - lastTick >= 0.17 - 0.11 * progress {
+        if side == .positive, reward?.providesRumble != true,
+          elapsed - lastTick >= 0.17 - 0.11 * progress
+        {
           lastTick = elapsed
           Haptics.tick(0.2 + 0.7 * progress)
         }
@@ -379,6 +407,7 @@ private struct CardStage: View {
   }
 
   private func reset() {
+    reward?.cancelCharge()
     side = nil
     dwell = 0
     withAnimation(.spring(response: 0.38, dampingFraction: 0.7)) {
@@ -395,16 +424,24 @@ private struct CardStage: View {
     leavingRating = rating
     switch rating {
     case .good:
-      Haptics.release(strong: false)
-    case .easy:
-      if rewarded {
-        Haptics.release(strong: true)
+      if let reward {
+        reward.smallWin()
       } else {
-        Haptics.reward()
+        Haptics.release(strong: false)
       }
-      celebrate()
+    case .easy:
+      if let reward {
+        if !rewarded { reward.burst() }  // schneller Wisch oder Button: die Glühbirne blitzt jetzt
+      } else {
+        if rewarded {
+          Haptics.release(strong: true)
+        } else {
+          Haptics.reward()
+        }
+        celebrate()
+      }
     case .hard, .again:
-      break  // keine Haptik: schlechte Antworten sollen nichts belohnen
+      reward?.breakCombo()  // keine Haptik: schlechte Antworten sollen nichts belohnen
     }
     withAnimation(.easeIn(duration: 0.26)) {
       offset = CGSize(width: rating.isPositive ? 900 : -900, height: offset.height - 30)

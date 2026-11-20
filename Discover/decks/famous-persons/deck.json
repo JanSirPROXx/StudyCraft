@@ -1,0 +1,18 @@
+{
+  "order": 4,
+  "title": "Famous Persons",
+  "subtitle": "Recognize well-known faces from science, history, art and sport",
+  "description": "Who is this? Test whether you recognize Nikola Tesla, Marie Curie, Mozart, Muhammad Ali and many more. Every card shows a photo or portrait, and the back tells you the name, the years they lived and what they are known for. Photos come from Wikimedia Commons and carry their credits on the card.",
+  "language": "en",
+  "tags": [
+    "People",
+    "History",
+    "Science",
+    "Art",
+    "Sport",
+    "Visual"
+  ],
+  "folderName": "Famous Persons",
+  "revision": 1,
+  "thumbnail": "thumbnail.jpg"
+}

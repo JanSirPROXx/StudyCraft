@@ -4,11 +4,21 @@ import SwiftUI
 // Eine Lernsitzung für ein Deck (samt Unterdecks): man geht das ganze Deck einmal durch, ob gemischt, der
 // Reihe nach oder nur die neuen Karten. "Nochmal" bringt eine Karte nach ein paar Karten noch einmal, alle
 // anderen Antworten schließen die Karte für diese Sitzung ab. Der Lernstand (Intervalle, Leichtigkeit)
-// wird bei jeder Antwort wie bei Anki fortgeschrieben.
+// wird bei jeder Antwort fortgeschrieben.
+// Der Stand einer angefangenen Sitzung, damit man ein Deck schließen und später genau dort weitermachen kann.
+struct SavedSession: Codable {
+  var mode: String
+  var done: [String]  // Karten, die für diese Sitzung abgeschlossen sind
+  var queue: [String]  // Karten, die noch kommen, in dieser Reihenfolge (die aktuelle zuerst)
+  var answered: Int
+  var seconds: TimeInterval
+}
+
 @MainActor @Observable
 final class StudySession: Identifiable {
   let id = UUID()
   let deckName: String
+  let deckID: String
   private(set) var mode: StudyMode
   private(set) var total = 0
   private(set) var finished = 0
@@ -49,8 +59,9 @@ final class StudySession: Identifiable {
     self.model = model
     self.mode = mode
     deckName = deck.name
+    deckID = deck.id
     pool = deck.allCards.filter { !$0.hidden }
-    rebuild()
+    if !resume() { rebuild() }
     advance()
   }
 
@@ -64,16 +75,67 @@ final class StudySession: Identifiable {
     model.studyMode = new
     rebuild()
     advance()
+    persist()
   }
 
-  // Zum Anfang zurück: alle Karten noch einmal.
+  // Zum Anfang zurück: alle Karten noch einmal. In „Nur neue“ gäbe es nach einem Durchgang keine Karte mehr,
+  // darum wechselt die Sitzung dann zum Mischen.
   func restart() {
+    if mode == .new {
+      mode = .shuffle
+      model.studyMode = .shuffle
+    }
     done = []
     finished = 0
+    answered = 0
+    seconds = 0
     history = []
     canUndo = false
+    lastID = nil
     rebuild()
     advance()
+    persist()
+  }
+
+  // MARK: Speichern und Fortsetzen
+
+  // Stellt eine gespeicherte Sitzung wieder her. false: es gibt keine (oder sie passt nicht mehr zum Deck).
+  private func resume() -> Bool {
+    guard let saved = model.savedSession(deckID: deckID) else { return false }
+    let byID = Dictionary(pool.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+    let finishedIDs = Set(saved.done.filter { byID[$0] != nil })
+    var seen = finishedIDs
+    var cards: [Card] = []
+    for id in saved.queue {
+      if let card = byID[id], seen.insert(id).inserted { cards.append(card) }
+    }
+    guard !cards.isEmpty else {
+      model.clearSavedSession(deckID: deckID)
+      return false
+    }
+    // Karten, die seitdem dazugekommen sind, hängen hinten an.
+    for card in pool where !seen.contains(card.id) { cards.append(card) }
+    mode = StudyMode(rawValue: saved.mode) ?? mode
+    done = finishedIDs
+    finished = finishedIDs.count
+    queue = cards
+    total = done.count + queue.count
+    answered = saved.answered
+    seconds = saved.seconds
+    return true
+  }
+
+  // Merkt sich den Stand; ist die Sitzung zu Ende, wird er gelöscht.
+  private func persist() {
+    guard let current else {
+      model.clearSavedSession(deckID: deckID)
+      return
+    }
+    model.saveSession(
+      SavedSession(
+        mode: mode.rawValue, done: Array(done), queue: [current.id] + queue.map(\.id),
+        answered: answered, seconds: seconds),
+      deckID: deckID)
   }
 
   private func rebuild() {
@@ -132,6 +194,7 @@ final class StudySession: Identifiable {
     lastID = card.id
     entryOffset = 0
     advance()
+    persist()
   }
 
   // Die letzte Antwort zurücknehmen: der Lernstand ist wie vorher, die Karte kommt noch einmal.
@@ -150,6 +213,7 @@ final class StudySession: Identifiable {
     if let current, current.id != entry.card.id { queue.insert(current, at: 0) }
     entryOffset = entry.rating.isPositive ? 700 : -700
     show(entry.card)
+    persist()
   }
 
   private func advance() {

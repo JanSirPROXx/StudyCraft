@@ -1,7 +1,7 @@
 # App-Store-Material
 
 - `Store-Texte.md` – alle Texte für App Store Connect (Deutsch), mit Zeichenlimits, plus Hinweise für die App-Prüfung
-- `Datenschutz.md` – Datenschutzerklärung (vor dem Hochladen Kontakt eintragen und unter einer öffentlichen URL hosten)
+- `Datenschutz.md` – Verweis auf die Datenschutzerklärung in `docs/` (GitHub Pages, vor dem Einreichen Kontakt eintragen)
 - `Screenshots/iPhone` – 1320 × 2868 px (iPhone 17 Pro Max, 6,9")
 - `Screenshots/iPad` – 2064 × 2752 px (iPad Pro 13")
 

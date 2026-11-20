@@ -6,3 +6,5 @@ xcuserdata/
 .DS_Store
 Config/Local.xcconfig
 *.xcodeproj/project.xcworkspace/xcuserdata/
+__pycache__/
+*.pyc

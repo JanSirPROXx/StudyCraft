@@ -1,6 +1,6 @@
 import Foundation
 
-// Ein Lerntag beginnt wie bei Anki um 4 Uhr morgens: wer um 1 Uhr nachts noch lernt, lernt für "gestern".
+// Ein Lerntag beginnt um 4 Uhr morgens: wer um 1 Uhr nachts noch lernt, lernt für "gestern".
 // Tage werden als fortlaufende Ganzzahl geführt, damit sie sich über Geräte und Zeitzonen hinweg
 // ohne Datumsformat-Probleme speichern und vergleichen lassen.
 enum StudyClock {

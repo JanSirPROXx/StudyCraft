@@ -1,0 +1,17 @@
+{
+  "order": 5,
+  "title": "100 Computer Science Questions",
+  "subtitle": "What every CS major should know, from easy to hard",
+  "description": "One hundred questions that cover the core of a computer science degree: algorithms and data structures, operating systems, networks, databases, security and theory. They start with the basics (Level 1), move on to what you need in interviews and exams (Level 2) and finish with the hard questions (Level 3).",
+  "language": "en",
+  "tags": [
+    "Computer Science",
+    "Programming",
+    "Algorithms",
+    "Interview",
+    "University"
+  ],
+  "folderName": "100 CS Questions",
+  "revision": 1,
+  "thumbnail": "thumbnail.jpg"
+}

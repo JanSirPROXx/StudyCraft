@@ -27,11 +27,16 @@ struct RootView: View {
       } else if model.rootURL == nil {
         WelcomeView()
       } else {
-        TabView {
+        TabView(selection: $model.selectedTab) {
           DeckListView()
             .tabItem { Label("Decks", systemImage: "rectangle.stack") }
+            .tag(RootTab.decks)
+          DiscoverView()
+            .tabItem { Label("Entdecken", systemImage: "sparkles.rectangle.stack") }
+            .tag(RootTab.discover)
           StatsView()
             .tabItem { Label("Statistik", systemImage: "chart.bar.xaxis") }
+            .tag(RootTab.stats)
         }
       }
     }

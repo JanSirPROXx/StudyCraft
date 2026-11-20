@@ -58,7 +58,7 @@ struct SchedulerConfig: Sendable {
   var maximumInterval = 36500
 }
 
-// Der klassische Anki-Algorithmus (SM-2-Variante des "v2"-Schedulers): Lernschritte für neue und
+// Die Wiederholungsplanung (eine SM-2-Variante): Lernschritte für neue und
 // vergessene Karten, danach Intervalle, die mit dem Leichtigkeitsfaktor der Karte wachsen.
 struct Scheduler: Sendable {
   var config = SchedulerConfig()

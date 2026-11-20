@@ -21,6 +21,10 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
   }
 }
 
+enum RootTab: Hashable {
+  case decks, discover, stats
+}
+
 // Der Zustand der ganzen App: der gewählte Lernordner, die Decks darin, der Lernstand und die
 // Einstellungen. Alles Langsame (Ordner einlesen, Dateien schreiben) läuft abseits des Hauptthreads.
 @MainActor @Observable
@@ -30,6 +34,8 @@ final class AppModel {
     static let studyMode = "studyMode"
     static let appearance = "appearanceMode"
     static let deviceID = "deviceID"
+    static let ultraDopamine = "ultraDopamine"
+    static let ultraSound = "ultraSound"
   }
 
   // Einstellungen
@@ -38,6 +44,13 @@ final class AppModel {
   }
   var appearance: AppearanceMode {
     didSet { defaults.set(appearance.rawValue, forKey: Keys.appearance) }
+  }
+  // Der Ultra-Dopamin-Modus: Wischen nach rechts wird zum Casino-Gewinn. Standardmäßig aus.
+  var ultraDopamine: Bool {
+    didSet { defaults.set(ultraDopamine, forKey: Keys.ultraDopamine) }
+  }
+  var ultraSound: Bool {
+    didSet { defaults.set(ultraSound, forKey: Keys.ultraSound) }
   }
 
   // Zustand
@@ -51,6 +64,7 @@ final class AppModel {
   private(set) var progress: ProgressBook
   var errorMessage: String?
   var activeSession: StudySession?
+  var selectedTab = RootTab.decks
 
   @ObservationIgnored private(set) var cardsByID: [String: Card] = [:]
   @ObservationIgnored private(set) var imageIndex: [String: URL] = [:]
@@ -76,6 +90,8 @@ final class AppModel {
   init() {
     studyMode = defaults.string(forKey: Keys.studyMode).flatMap(StudyMode.init) ?? .shuffle
     appearance = defaults.string(forKey: Keys.appearance).flatMap(AppearanceMode.init) ?? .system
+    ultraDopamine = defaults.bool(forKey: Keys.ultraDopamine)
+    ultraSound = defaults.object(forKey: Keys.ultraSound) as? Bool ?? true
     let id = defaults.string(forKey: Keys.deviceID) ?? UUID().uuidString
     defaults.set(id, forKey: Keys.deviceID)
     deviceID = id
@@ -269,6 +285,18 @@ final class AppModel {
 
   // MARK: Lernen
 
+  private func sessionKey(_ deckID: String) -> String { "studySession.v1.\(deckID)" }
+
+  func savedSession(deckID: String) -> SavedSession? {
+    defaults.data(forKey: sessionKey(deckID)).flatMap { try? JSONDecoder().decode(SavedSession.self, from: $0) }
+  }
+
+  func saveSession(_ session: SavedSession, deckID: String) {
+    if let data = try? JSONEncoder().encode(session) { defaults.set(data, forKey: sessionKey(deckID)) }
+  }
+
+  func clearSavedSession(deckID: String) { defaults.removeObject(forKey: sessionKey(deckID)) }
+
   func startSession(_ node: DeckNode) {
     activeSession = StudySession(deck: node, mode: studyMode, model: self)
   }
@@ -426,6 +454,12 @@ final class AppModel {
     let url = folderURL(node.id)
     do {
       try await Task.detached { try FileIO.remove(url) }.value
+      // Angefangene Sitzungen des Decks und seiner Unterdecks gelten nicht mehr.
+      func forget(_ node: DeckNode) {
+        clearSavedSession(deckID: node.id)
+        node.children.forEach(forget)
+      }
+      forget(node)
     } catch {
       fail("Das Deck konnte nicht gelöscht werden", error)
     }
