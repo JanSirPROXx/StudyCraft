@@ -67,8 +67,8 @@ Primär: Bildung · Sekundär: Produktivität
 4+ (alle Fragen im Fragebogen mit „Nein" beantworten)
 
 ## URLs
-- Support-URL: https://jansirprox.github.io/StudyCraft/
-- Datenschutz-URL: https://jansirprox.github.io/StudyCraft/datenschutz
+- Support-URL: https://jansirproxx.github.io/StudyCraft/
+- Datenschutz-URL: https://jansirproxx.github.io/StudyCraft/datenschutz
 - Marketing-URL: optional
 
 GitHub Pages: Branch `main`, Ordner `/docs`.

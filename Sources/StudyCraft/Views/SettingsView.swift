@@ -133,8 +133,8 @@ struct FormatHelpView: View {
 }
 
 enum AppLinks {
-  static let privacy = URL(string: "https://jansirprox.github.io/StudyCraft/datenschutz")!
-  static let support = URL(string: "https://jansirprox.github.io/StudyCraft/")!
+  static let privacy = URL(string: "https://jansirproxx.github.io/StudyCraft/datenschutz")!
+  static let support = URL(string: "https://jansirproxx.github.io/StudyCraft/")!
 
   static var version: String {
     let info = Bundle.main.infoDictionary
